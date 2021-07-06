@@ -7,7 +7,6 @@ import uuid
 import random
 
 
-
 class CustomAccountManager(BaseUserManager):
     #This is custom model manager is for creating users and superusers.
     
@@ -57,10 +56,6 @@ class AbstractUser(models.Model):
     id = models.AutoField(primary_key=True)
     newuser_uuid = models.UUIDField(default = uuid.uuid4, editable = False, unique=True)
 
-
-    
-    
-    
     def __str__(self):
         return f"{self.first_name}"
     
@@ -137,7 +132,6 @@ class PhoneOTP(models.Model):
     
     def save(self, *args, **kwargs):
         user = self.user
-        print("user2")
         if user:
             PhoneOTP.objects.filter(user=user).delete()
         numberList =  [x for x in range(10)]

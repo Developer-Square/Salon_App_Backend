@@ -31,7 +31,6 @@ INSTALLED_APPS = [
      # third party
     'rest_framework',
     'django_seed',
-    'corsheaders',
     'drf_yasg',
     'corsheaders',
     

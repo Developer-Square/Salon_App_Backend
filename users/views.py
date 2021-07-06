@@ -114,7 +114,7 @@ class VerifyPhone_OTP(APIView):
 
     def post(self, request, *args, **kwargs):
         '''
-        posting the code sent to our phone. 
+        posting the code sent to THE phone. 
         confirms with the one created in the db during get request
         '''
         user = self.request.user
@@ -132,7 +132,7 @@ class VerifyPhone_OTP(APIView):
         else:
             return Response("First log in")
 
-class SendPhoneToGetOTPCode(APIView):
+class SendPhoneToGetOTPCode(APIView): # FORGET PASSWORD 1
     '''
     user is supposed to fill the phone number and post request 
     random number is then generated and used to create a phoneOTP object
@@ -160,7 +160,7 @@ class SendPhoneToGetOTPCode(APIView):
             return Response(sms)
 
 
-class VerifyOTPCode(APIView):
+class VerifyOTPCode(APIView):  # FORGET PASSWORD 2
     permission_classes = [AllowAny,]
     
     def put(self, request, *args, **kwargs):
@@ -373,6 +373,7 @@ class UpdateStylistProfile(APIView):
             
         else:
             return Response("You are not logged in")
+
 
 class DeleteStylistProfile(APIView):
     '''
