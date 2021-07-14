@@ -1,3 +1,5 @@
+# 555068933656-haou46l4vec87gf7akedbudgm653c1a6.apps.googleusercontent.com
+
 import json
 import random
 
@@ -5,77 +7,151 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated,  IsAdminUser, IsAuthenticatedOrReadOnly
-from django.contrib.auth.hashers import make_password   
-
-from drf_social_oauth2.views import TokenView
-from oauth2_provider.models import get_access_token_model, get_application_model
-from oauth2_provider.signals import app_authorized
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.hashers import make_password
+import coreapi
+import coreschema
+from rest_framework.schemas import AutoSchema
 
 
 from .models import NewUser, Stylist, PhoneOTP
-from .serializers import (RegisterUserSerializer, RegisterStylistSerializer, UserSerializer, StylistSerializer,
+from .serializers import (LoginSerializer, RegisterUserSerializer, RegisterStylistSerializer, UserSerializer, StylistSerializer,
                 UserProfileSerializer, )
 from .utils import Util, get_random_code
 
-'''
-Authentication
-'''
-
-
-class CustomTokenView(TokenView,):
+class LoginUser(APIView):
     '''
-    Log in a user, returns token and user details, like id, phone_number, email
+    Authentication
     '''
-
-    def post(self, request, *args, **kwargs):
-
-        mutable_data = request.data.copy()
-        request._request.POST = request._request.POST.copy()
-        for key, value in mutable_data.items():
-            request._request.POST[key] = value
-            url, headers, body, status = self.create_token_response(
-                request._request)
-            if status == 200:
-                body = json.loads(body)
-                access_token = body.get("access_token")
-                if access_token is not None:
-                    token = get_access_token_model().objects.get(
-                        token=access_token)
-                    app_authorized.send(
-                        sender=self, request=request,
-                        token=token)
-                    body['user'] = {
-                        'id': token.user.id,
-                        'username': token.user.username,
-                        'email': token.user.email,
-                        'first_name': token.user.first_name,
-                    
-                    }
-                    body = json.dumps(body)
-            response = Response(data=json.loads(body), status=status)
-            for k, v in headers.items():
-                response[k] = v
-            return response
-
+    schema = AutoSchema(manual_fields=[
+    coreapi.Field(
+        "data",
+        required=True,
+        location="body",
+        description='{"email":str, "password":str}',
+        schema=coreschema.Object()
+        ),
+        ])
    
-class CustomUserCreate(APIView):
+    permission_classes = [AllowAny, ]
+    serializer_class = [LoginSerializer, ]
+    
+    def post(self, request):
+      
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+
+class RegisterUser(APIView):
     '''  
     registering a new user
     
     '''
+    schema = AutoSchema(manual_fields=[
+        coreapi.Field(
+            "data",
+            required=True,
+            location="body",
+            description='{"email":str, "úsername":str, "password":str,  "password":str}',
+            schema=coreschema.Object()
+        ),
+    ])
     permission_classes = [AllowAny,]
     def post(self, request, format='json'):
+        
+        data = request.data
+        
+        entered_username =  NewUser.objects.filter(username = data['username'])
+                         
+        entered_email = NewUser.objects.filter(email=data['email'] )
+        try: 
+            entered_phone_number = NewUser.objects.filter(phone_number = data['phone_number'] )    
+        except:
+            pass
+        
+        if entered_username:
+            return Response("This username already exist")
+        if entered_email:
+            return Response("This email already exist")
+        try: 
+            if entered_phone_number:
+                return Response("This Phone number already exist")
+        except:
+            pass
+ 
+
         serializer = RegisterUserSerializer(data=request.data)
-        
-        
         if serializer.is_valid(raise_exception=True):
-            
             user = serializer.save()
             if user:
+               
+                user_data = serializer.data
+                try:
+                    user = NewUser.objects.get(email=user_data['email'] )
+                except:
+                    return Response(user_data['email'], 'email does not esist')
+                    
+                num = get_random_code()
+            
+                PhoneOTP.objects.create(user=user, number=num)
+                otp_code = user.code.number 
+                email_message = "Hello "+ user.username + " use this code - " + otp_code  + " to verify your email"
+                print(user.email)
+                data = {'email_subject': 'Verify email', 'email_body': email_message, 'to_email': user.email, }
+                Util.send_email(data)
                 
-                json = serializer.data
-                return Response(json, status=status.HTTP_201_CREATED)
+                sms_data = "Hello "+  user.username +  " use this code " + otp_code +  " to verigy your phone number"
+                
+                Util.send_sms(sms_data)
+                
+                print ('Hi', user.username, "we have sent you a code on submitted email to verify this email", otp_code)
+                
+                token = RefreshToken.for_user(user).access_token
+        
+                return Response(user_data, status=status.HTTP_201_CREATED)
+           
+            
+            
+            
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+    
+class VerifyEmailAfterSignUp(APIView):
+    '''  
+    class will verify the email given by the use using OTP.
+    It has to take place after access token is issued. eg after account creation or after creation and login
+    data = phonenumber
+    
+    '''
+    permission_classes = [AllowAny,]
+    
+
+    def post(self, request, *args, **kwargs):
+        '''
+        send code to backend
+        '''
+        user = self.request.user
+        if user:    
+            code_in_db = user.code.number # existing on db, created on signup  
+            try:
+                otp_code = request.data["number"]  # submitted by client
+            except: 
+                return Response("enter code")
+            if otp_code:
+                if str(code_in_db) == str(otp_code):
+                    return Response('Email is verified', status=status.HTTP_201_CREATED, )  
+                    if not user.email_is_verified:
+                        user.email_is_verified = True
+                        user.save()    
+                        return Response('Email verification successful', status=status.HTTP_200_OK)
+                else :
+                  
+                    return Response('Email verification_failed', status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response('enter the code', status=status.HTTP_403_FORBIDDEN)      
+        else:
+            return Response("First log in")
+
         
         
 class VerifyPhone_OTP(APIView):
@@ -87,31 +163,6 @@ class VerifyPhone_OTP(APIView):
     '''
     permission_classes = [AllowAny,]
     
-    
-    def get(self, request, *args, **kwargs):
-        
-        '''
-         user has to be logged in after creating account
-         a phone otp table is created with user and code
-         after get request a user is sent a sms code
-        
-        '''
-     
-        if request.user.is_anonymous == True:
-            return Response("get access token")
-        else:
-            user = self.request.user
-            if user:
-                phone = user.phone_number
-                num = get_random_code()
-                PhoneOTP.objects.create(user=user, number=num)
-                number = user.code.number 
-                # send sms to user containing number recepient is phone
-                sms = f"{user.username} - {number}"
-                return Response(sms)
-            else:
-                return Response("First log in")
-
     def post(self, request, *args, **kwargs):
         '''
         posting the code sent to THE phone. 
@@ -120,19 +171,23 @@ class VerifyPhone_OTP(APIView):
         user = self.request.user
         if user:
             code = user.code.number 
-            number = request.data["number"]
-            if str(code) == number:
-                
-                message = {'detail': 'verified'}
-                return Response(message, status=status.HTTP_201_CREATED, )   
+            try:      
+                otp_code = request.data["number"]
+            except:
+                return Response('enter the code', status=status.HTTP_403_FORBIDDEN)
+        
+            if str(code) == str(otp_code):
+                return Response('Phone number is now veriified', status=status.HTTP_201_CREATED, )   
+                if not user.phone_is_verified:
+                    user.phone_is_verified = True
+                    user.save()
             else :
-                message = {'detail': 'verification_failed'}
-                return Response(message, status=status.HTTP_403_FORBIDDEN)
-            
+                return Response('verification_failed', status=status.HTTP_403_FORBIDDEN)              
         else:
-            return Response("First log in")
+                return Response("First log in")
 
-class SendPhoneToGetOTPCode(APIView): # FORGET PASSWORD 1
+
+class ResetPassword(APIView): # FORGET PASSWORD 1
     '''
     user is supposed to fill the phone number and post request 
     random number is then generated and used to create a phoneOTP object
@@ -140,33 +195,53 @@ class SendPhoneToGetOTPCode(APIView): # FORGET PASSWORD 1
     
     '''
     def post(self, request, *args, **kwargs):
-        data = request.data
-        phone_number = data['phone_number']
+        print(request.data)
+     
+        try:
+            phone_number = request.data['phone_number']
+        except: 
+            return Response(' Enter phone number' )
         try:
             user = NewUser.objects.get(phone_number = phone_number)
         except:
-            return Response("usser does not exist")
+            return Response("user does not exist")
         if user:
-           
-            print(user)
+
             num = get_random_code()
             
             PhoneOTP.objects.create(user=user, number=num)
-            number = user.code.number 
-            sms = f"{user} - {number}"
+            otp_code = user.code.number 
+            sms_data = "Hello"+  user.username+  "use this code - " + otp_code +  "to change your password"
             
-            print (user.username, "sent a message", number)
+            Util.send_sms(sms_data)
+            
+            print (user.username, "sent a message", otp_code)
             # send message
-            return Response(sms)
-
-
-class VerifyOTPCode(APIView):  # FORGET PASSWORD 2
-    permission_classes = [AllowAny,]
-    
+            
+            return Response('We have sent you a message containing the verification number', status=status.HTTP_200_OK)
+        else: 
+            return Response("This phone number does not belong to ant registered user")
+        
     def put(self, request, *args, **kwargs):
-        data = request.data
-        number = data['number']
-        password = data['password']
+        try:
+            number = request.data['number']
+        except: 
+            return Response(' Enter otp code' )
+        if number:
+            pass
+        else:
+            return Response(' Enter 111 the code' )
+        try:
+            password = request.data['password']
+        except: 
+            return Response(' Enter password' )    
+        if password:
+            pass
+        else:
+            return Response(' Enter the new password' )
+        
+       
+        password = request.data['password']
         number = str(number)
         try:       
             otp = PhoneOTP.objects.get(number = number)
@@ -176,33 +251,17 @@ class VerifyOTPCode(APIView):  # FORGET PASSWORD 2
         user = otp.user
         print("name -", user.username)
         if user:
-           
-            user.password = make_password(data["password"])
+        
+            user.password = make_password(password)
             user.save()
-     
+    
         print("new_password set", user.password)
         
-        return Response("new_password set")
-        
+        return Response("new password set",  status=status.HTTP_200_OK)
     
- 
-class GetLoggedInUserProfile(APIView):
-    '''  
-    This class GET the  details of the currently logged in user.    
-    '''
-    
-    permission_classes = [IsAuthenticated]
-    serializer_class = UserProfileSerializer
-    
-    def get(self, request): 
-        try:
-            current_user = self.request.user
-            serializer = UserProfileSerializer(current_user, many=False)
-            return Response(serializer.data)
-        except :
-            return Response("you are not logged in")
-        
-        
+            
+
+
 class GetAnyUserProfile(APIView):
     '''  
     This class GET the  details of any user  

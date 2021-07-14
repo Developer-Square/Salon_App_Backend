@@ -7,6 +7,7 @@ from rest_framework.schemas import get_schema_view
 from rest_framework.documentation import include_docs_urls
 
 
+
 # from rest_framework import permissions
 # from drf_yasg.views import get_schema_view
 # from drf_yasg import openapi
@@ -27,14 +28,13 @@ from rest_framework.documentation import include_docs_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    #Oauth
-    path('auth/', include('drf_social_oauth2.urls', namespace='drf')),
-
+       
     # users
     path('api/users/', include('users.urls', namespace='users' )),
     
-        # django rest web login
+    path('api/social_auth/', include(('social_auth.urls', 'social_auth'), namespace='social_auth' )),
+    
+    # django rest web login
     path('api_auth/', include('rest_framework.urls', namespace='rest_framework')),
 
     # documentation

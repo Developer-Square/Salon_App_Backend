@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils.translation import ugettext_lazy as _
 
+from rest_framework_simplejwt.tokens import RefreshToken
 import uuid
 import random
 
@@ -27,7 +28,7 @@ class CustomAccountManager(BaseUserManager):
         return self.create_user(email, username, first_name,  password, **other_fields)
     
     
-    def create_user(self,email, username, first_name,  password, **other_fields):
+    def create_user(self, email, username, first_name,  password, **other_fields):
         #creating a user
         
         if not email:
@@ -43,29 +44,9 @@ class CustomAccountManager(BaseUserManager):
         user.set_password(password)
         user.save()
         return user
-    
-class AbstractUser(models.Model):
-    email = models.EmailField(_('email address'), unique=True)
-    username = models.CharField(max_length=100, unique=True )
-    first_name = models.CharField(max_length=100, blank=False)
-    start_date = models.DateTimeField(default=timezone.now)
-    is_staff = models.BooleanField(default=False) # people who can access admin
-    is_active = models.BooleanField(default=True )
-    created_at = models.DateTimeField(auto_now_add=True)
-    phone_number = models.CharField(max_length=12, blank=True, null=True, unique=True)
-    id = models.AutoField(primary_key=True)
-    newuser_uuid = models.UUIDField(default = uuid.uuid4, editable = False, unique=True)
 
-    def __str__(self):
-        return f"{self.first_name}"
-    
-    class Meta:
-        ordering = ["-created_at"]
-        
-    class Meta:
-        abstract = True
-        
 
+AUTH_PROVIDERS = {'google':'google', 'email':'email'}
 
 class NewUser( AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(_('email address'), unique=True)
@@ -78,7 +59,9 @@ class NewUser( AbstractBaseUser, PermissionsMixin):
     phone_number = models.CharField(max_length=12, blank=True, null=True, unique=True)
     id = models.AutoField(primary_key=True)
     newuser_uuid = models.UUIDField(default = uuid.uuid4, editable = False, unique=True)
-    
+    phone_is_verified = models.BooleanField(default=False)
+    email_is_verified = models.BooleanField(default=False)
+    auth_provider = models.CharField(max_length=255, blank=False, null=False, default=AUTH_PROVIDERS.get('email'))
     
     #custom model manager
     objects = CustomAccountManager()
@@ -94,6 +77,13 @@ class NewUser( AbstractBaseUser, PermissionsMixin):
     
     class Meta:
         ordering = ["-created_at"]
+        
+    def tokens(self):
+        refresh = RefreshToken.for_user(self)
+        return {
+            'refresh':str(refresh) ,
+            'access': str(refresh.access_token)
+        }
 
 
 class NewUserProfile(models.Model):

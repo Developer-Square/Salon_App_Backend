@@ -1,26 +1,26 @@
 from django.urls import path, include
-from .views import ( CustomUserCreate,StylistCreateView, DeleteUserProfile, DeleteStylistProfile, CustomTokenView, GetAnyUserProfile,
-                    GetLoggedInUserProfile, GetUsers, UpdateUserProfile, GetStylistProfile, GetAllStylists, UpdateStylistProfile, 
-                    VerifyPhone_OTP, VerifyOTPCode,  SendPhoneToGetOTPCode )
-
+from .views import ( LoginUser, RegisterUser, StylistCreateView, DeleteUserProfile, DeleteStylistProfile, GetAnyUserProfile,
+                    GetUsers, UpdateUserProfile, GetStylistProfile, GetAllStylists, UpdateStylistProfile, 
+                    VerifyPhone_OTP, ResetPassword, VerifyEmailAfterSignUp )
+from rest_framework_simplejwt.views import ( TokenRefreshView )
 
 app_name = 'users'
 
 urlpatterns = [
     # token authentication
-    path('login/', CustomTokenView.as_view(), name ='login' ), #login 
-  
+    path('login/', LoginUser.as_view(), name ='login' ), #log in phone
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # refresh token
+    
     # veryfy phone number
     path('verify_phone_number/', VerifyPhone_OTP.as_view(), name ='verify' ), #Verify phone
+    path('verify_email/', VerifyEmailAfterSignUp.as_view(), name ='verify' ), #send phone number for reseting
+
   
     # reset password
-    path('reset/send_phone/', SendPhoneToGetOTPCode.as_view(), name ='verify' ), #send phone number for reseting
-    path('reset/send_otp_and_password/', VerifyOTPCode.as_view(), name ='verify' ), #login code + new password
+    path('reset_password/', ResetPassword.as_view(), name ='verify' ), #send phone number for reseting
 
- 
     #users end points
-    path('register/', CustomUserCreate.as_view(), name ="register"), #Creates a new user  
-    path('profile/', GetLoggedInUserProfile.as_view(), name="user_profile"), # Get details of currently logged in user.
+    path('register/', RegisterUser.as_view(), name ="register"), #Creates a new user  
     path('profile/update/', UpdateUserProfile.as_view(), name="update_profile"), #update details of currently logged in user
     path('profile/delete/', DeleteUserProfile.as_view(), name="delete_profile"), #delete user
     path('<int:id>/', GetAnyUserProfile.as_view(), name="stylist_profile"), # view profile of any user

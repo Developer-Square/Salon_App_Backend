@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 import os
+import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,11 +34,7 @@ INSTALLED_APPS = [
     'django_seed',
     'drf_yasg',
     'corsheaders',
-    
-      #oauth
-    'oauth2_provider',
-    'social_django',
-    'drf_social_oauth2',
+    'rest_framework_simplejwt',
     
     # our apps
     'users',
@@ -81,8 +78,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'social_django.context_processors.backends',
-                'social_django.context_processors.login_redirect',
+               
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -178,39 +174,24 @@ CORS_ALLOW_ALL_ORIGINS = True
 REST_FRAMEWORK = {
     # project level permissions
     'DEFAULT_PERMISSION_CLASSES': (
-        # IsAuthenticatedOrReadOnly may bring problems when trying to login or register new user
         'rest_framework.permissions.AllowAny',
     ),
      'DEFAULT_AUTHENTICATION_CLASSES': (
-     
-        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # django-oauth-toolkit >= 1.0.0
-        'drf_social_oauth2.authentication.SocialAuthentication',
+         'rest_framework_simplejwt.authentication.JWTAuthentication',
+      
     ),
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
 
 }
 AUTHENTICATION_BACKENDS = (
-  
-     # Google OAuth2
-    'social_core.backends.google.GoogleOAuth2',
-
-    # drf-social-oauth2
-    'drf_social_oauth2.backends.DjangoOAuth2',
 
     # Django
     'django.contrib.auth.backends.ModelBackend',
 )
-
-# Google configuration
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = ""
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = ""
-
-# Define SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE to get extra permissions from Google.
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile',
-]
-
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(days=15),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=15),
+}
 
 EMAIL_USE_TLS =True
 EMAIL_PORT = 587
