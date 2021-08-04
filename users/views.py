@@ -22,22 +22,14 @@ from .utils import Util, get_random_code
 class LoginUser(APIView):
     '''
     Authentication
+
+    Required fields are email, password
     '''
-    schema = AutoSchema(manual_fields=[
-    coreapi.Field(
-        "data",
-        required=True,
-        location="body",
-        description='{"email":str, "password":str}',
-        schema=coreschema.Object()
-        ),
-        ])
-   
     permission_classes = [AllowAny, ]
     serializer_class = [LoginSerializer, ]
     
     def post(self, request):
-      
+
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -45,7 +37,7 @@ class LoginUser(APIView):
 
 class RegisterUser(APIView):
     '''  
-    registering a new user
+    registering a new user. Required fields are first_name, username, email, password
     
     '''
     schema = AutoSchema(manual_fields=[
@@ -62,8 +54,7 @@ class RegisterUser(APIView):
         
         data = request.data
         
-        entered_username =  NewUser.objects.filter(username = data['username'])
-                         
+        entered_username =  NewUser.objects.filter(username = data['username'])                      
         entered_email = NewUser.objects.filter(email=data['email'] )
         try: 
             entered_phone_number = NewUser.objects.filter(phone_number = data['phone_number'] )    
@@ -84,8 +75,7 @@ class RegisterUser(APIView):
         serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            if user:
-               
+            if user:          
                 user_data = serializer.data
                 try:
                     user = NewUser.objects.get(email=user_data['email'] )
@@ -99,13 +89,19 @@ class RegisterUser(APIView):
                 email_message = "Hello "+ user.username + " use this code - " + otp_code  + " to verify your email"
                 print(user.email)
                 data = {'email_subject': 'Verify email', 'email_body': email_message, 'to_email': user.email, }
-                Util.send_email(data)
+
+                try:
+                    Util.send_email(data)
+                except:
+                    pass
                 
                 sms_data = "Hello "+  user.username +  " use this code " + otp_code +  " to verigy your phone number"
                 
-                Util.send_sms(sms_data)
+                try:
+                    Util.send_sms(sms_data)
+                except:
+                    pass
                 
-                print ('Hi', user.username, "we have sent you a code on submitted email to verify this email", otp_code)
                 
                 token = RefreshToken.for_user(user).access_token
         
@@ -121,9 +117,12 @@ class VerifyEmailAfterSignUp(APIView):
     class will verify the email given by the use using OTP.
     It has to take place after access token is issued. eg after account creation or after creation and login
     data = phonenumber
+
+    required fields is "number", which will send OTP code
     
     '''
     permission_classes = [AllowAny,]
+
     
 
     def post(self, request, *args, **kwargs):
@@ -159,6 +158,8 @@ class VerifyPhone_OTP(APIView):
     class will verify the phone number given by the use using OTP.
     It has to take place after access token is issued. eg after account creation or after creation and login
     data = phonenumber
+
+      required fields is "number", which will send OTP code
     
     '''
     permission_classes = [AllowAny,]
@@ -194,8 +195,9 @@ class ResetPassword(APIView): # FORGET PASSWORD 1
     A message is then sent to the username containing the otp code
     
     '''
+
     def post(self, request, *args, **kwargs):
-        print(request.data)
+        '''required field is phone_number'''
      
         try:
             phone_number = request.data['phone_number']
@@ -213,7 +215,10 @@ class ResetPassword(APIView): # FORGET PASSWORD 1
             otp_code = user.code.number 
             sms_data = "Hello"+  user.username+  "use this code - " + otp_code +  "to change your password"
             
-            Util.send_sms(sms_data)
+            try:
+                Util.send_sms(sms_data)
+            except:
+                pass
             
             print (user.username, "sent a message", otp_code)
             # send message
@@ -223,6 +228,8 @@ class ResetPassword(APIView): # FORGET PASSWORD 1
             return Response("This phone number does not belong to ant registered user")
         
     def put(self, request, *args, **kwargs):
+        '''required fields is "number", which will send OTP code'''
+
         try:
             number = request.data['number']
         except: 
@@ -230,11 +237,11 @@ class ResetPassword(APIView): # FORGET PASSWORD 1
         if number:
             pass
         else:
-            return Response(' Enter 111 the code' )
+            return Response(' Enter the code' )
         try:
             password = request.data['password']
         except: 
-            return Response(' Enter password' )    
+            return Response(' Error, try again and enter new password' )    
         if password:
             pass
         else:
@@ -283,12 +290,11 @@ class GetAnyUserProfile(APIView):
         print("serializer", serializer)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
-     
 
 class UpdateUserProfile(APIView):
     '''
-     class for updating the currently logged in user
-     all fields have to be sent from the backend.
+    class for updating the currently logged in user
+    all fields have to be sent from the backend.
     '''
 
     permission_classes = [IsAuthenticated]

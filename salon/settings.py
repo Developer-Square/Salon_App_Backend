@@ -2,6 +2,8 @@ from pathlib import Path
 from datetime import timedelta
 import os
 import datetime
+from decouple import config
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,7 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     
-     # third party
+    # third party
     'rest_framework',
     'django_seed',
     'drf_yasg',
@@ -57,7 +59,7 @@ if DEBUG:
         'debug_toolbar.middleware.DebugToolbarMiddleware',
     ]
     INSTALLED_APPS += [
-       'debug_toolbar',
+        'debug_toolbar',
     ]
     
     INTERNAL_IPS = ['127.0.0.1', ]
@@ -78,7 +80,6 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-               
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -196,19 +197,19 @@ SIMPLE_JWT = {
 EMAIL_USE_TLS =True
 EMAIL_PORT = 587
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 
 
 SWAGGER_SETTINGS = {
-   'SECURITY_DEFINITIONS': {
-      'Basic': {
+    'SECURITY_DEFINITIONS': {
+        'Basic': {
             'type': 'basic'
-      },
-      'Bearer': {
+        },
+        'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header'
-      }
-   }
+        }
+    }
 }
